@@ -1,98 +1,511 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Notely Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A powerful and flexible backend API for Notely - a modern note-taking application built with NestJS, Prisma, and PostgreSQL. This backend provides comprehensive features for user management, page organization, and rich content blocks with drag-and-drop functionality.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📋 Table of Contents
 
-## Description
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## ✨ Features
 
-## Project setup
+### 1. User Management
+- ✅ **Supabase Authentication**: Email/password authentication managed by Supabase
+- ✅ **Auto User Sync**: Automatically syncs Supabase users to local database
+- ✅ Profile management (update name and avatar)
+- ✅ **Email Verification**: Built-in email confirmation support
+- ✅ **Secure Token Validation**: Direct token verification with Supabase API
 
-```bash
-$ pnpm install
+### 2. Page Management
+- ✅ Create unlimited pages
+- ✅ Edit page titles
+- ✅ Delete pages (with cascade deletion of blocks)
+- ✅ List all user pages
+- ✅ Automatic sorting by last updated
+
+### 3. Block Content Management
+- ✅ **Text Blocks**: Rich text with formatting (bold, italic, underline)
+- ✅ **Heading Blocks**: Three levels (H1, H2, H3)
+- ✅ **Checklist Blocks**: Interactive todo lists with checkable items
+- ✅ **Image Blocks**: Images from URLs with captions
+- ✅ **Drag & Drop**: Reorder blocks with position management
+- ✅ **Auto-save**: All changes saved to database
+- ✅ CRUD operations for all block types
+
+### 4. Security Features
+- ✅ **Supabase Auth**: Enterprise-grade authentication
+- ✅ **Token Validation**: Direct verification with Supabase API
+- ✅ User data isolation
+- ✅ Access control (users can only access their own data)
+- ✅ CORS configuration
+- ✅ Input validation
+- ✅ **Email Verification**: Optional email confirmation
+
+## 🛠 Tech Stack
+
+- **Framework**: [NestJS](https://nestjs.com/) v11
+- **Language**: TypeScript
+- **Database**: [Supabase](https://supabase.com) (PostgreSQL)
+- **ORM**: [Prisma](https://www.prisma.io/) v6
+- **Authentication**: [Supabase Auth](https://supabase.com/docs/guides/auth)
+- **Validation**: class-validator, class-transformer
+- **Package Manager**: pnpm
+
+## 🔐 Authentication with Supabase
+
+This backend uses **Supabase Auth** for authentication. Here's how it works:
+
+### How It Works
+
+1. **Client-Side**: Users sign up/login via Supabase client
+   ```javascript
+   // Frontend example
+   const { data, error } = await supabase.auth.signUp({
+     email: 'user@example.com',
+     password: 'password123'
+   });
+   ```
+
+2. **Token**: Supabase returns an access token (JWT)
+   ```javascript
+   const token = data.session.access_token;
+   ```
+
+3. **API Requests**: Frontend sends token in Authorization header
+   ```javascript
+   fetch('http://localhost:3000/profile', {
+     headers: {
+       'Authorization': `Bearer ${token}`
+     }
+   });
+   ```
+
+4. **Backend Validation**: Custom guard verifies token with Supabase API
+   - Token is validated directly with Supabase (no JWT secret needed)
+   - User is automatically synced to local database
+   - Request proceeds with authenticated user
+
+### User Sync
+
+When a user first accesses the API:
+- Supabase user is automatically created in local database
+- User metadata (name, avatar) is synced
+- Subsequent requests use local database user
+
+## 🏗 Architecture
+
+The application follows NestJS modular architecture with clear separation of concerns:
+
+```
+src/
+├── auth/              # Authentication & authorization
+├── profile/           # User profile management
+├── pages/             # Page CRUD operations
+├── blocks/            # Block content management
+├── prisma/            # Database service
+└── main.ts           # Application entry point
 ```
 
-## Compile and run the project
+### Database Schema
 
-```bash
-# development
-$ pnpm run start
+```prisma
+User
+├── id: String (UUID from Supabase)
+├── email: String (unique)
+├── name: String?
+├── avatar: String?
+└── pages: Page[]
 
-# watch mode
-$ pnpm run start:dev
+Page
+├── id: String (CUID)
+├── title: String
+├── userId: String
+├── blocks: Block[]
+└── timestamps
 
-# production mode
-$ pnpm run start:prod
+Block
+├── id: String (CUID)
+├── type: BlockType (TEXT | HEADING | CHECKLIST | IMAGE)
+├── content: Json
+├── position: Int
+├── pageId: String
+└── timestamps
 ```
 
-## Run tests
+## 🚀 Description
 
+Notely backend is built with [NestJS](https://github.com/nestjs/nest) - a progressive Node.js framework for building efficient and scalable server-side applications.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+- Node.js (v18 or higher)
+- pnpm (v8 or higher)
+- PostgreSQL (v14 or higher)
+
+### Installation
+
+1. **Clone the repository**
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+git clone <repository-url>
+cd backend-sealions
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+2. **Install dependencies**
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm install
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+3. **Set up Supabase Database**
 
-## Resources
+**Bước 1: Tạo Supabase Project**
+1. Vào https://supabase.com và tạo project mới
+2. Lưu lại **Database Password** và **Project URL**
 
-Check out a few resources that may come in handy when working with NestJS:
+**Bước 2: Lấy Connection String**
+1. Vào **Settings** → **Database**
+2. Copy **Connection string** (Session pooler - port 5432)
+3. Format: `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-xxx.pooler.supabase.com:5432/postgres`
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Bước 3: Tạo Tables**
+Chạy SQL script trong Supabase SQL Editor để tạo tables (xem file `create-tables.sql` hoặc dùng Prisma migrations)
 
-## Support
+**Bước 4: Cấu hình `.env`**
+```env
+# Supabase Database
+DATABASE_URL="postgresql://postgres.mhjfgywtpauumlexnxfp:YOUR_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.mhjfgywtpauumlexnxfp:YOUR_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Supabase Auth
+SUPABASE_URL="https://mhjfgywtpauumlexnxfp.supabase.co"
+SUPABASE_KEY="your-anon-key-from-supabase"
+SUPABASE_JWT_SECRET="your-jwt-secret-from-supabase"
 
-## Stay in touch
+# Application
+PORT=3000
+FRONTEND_URL="http://localhost:5173"
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+4. **Set up the database**
 
-## License
+**Option A: Using Prisma Migrations (Recommended)**
+```bash
+# Run database migrations
+pnpm run db:migrate
+# hoặc: npx prisma migrate dev --name init
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Generate Prisma Client
+pnpm run db:generate
+# hoặc: npx prisma generate
+
+# Check connection (nếu dùng Supabase)
+pnpm run db:check
+```
+
+**Option B: Create Tables Manually (If migrations fail)**
+1. Go to Supabase Dashboard → SQL Editor
+2. Run the SQL script to create tables (see `prisma/schema.prisma` for schema)
+3. Or use Prisma db push:
+```bash
+npx prisma db push --accept-data-loss
+```
+
+5. **Configure Supabase Authentication**
+
+**Enable Email Provider:**
+1. Go to Supabase Dashboard → Authentication → Providers
+2. Enable "Email" provider
+3. Configure email settings (optional: disable email confirmation for testing)
+
+**Get Supabase Keys:**
+1. Go to Settings → API
+2. Copy:
+   - **Project URL** → `SUPABASE_URL`
+   - **anon public key** → `SUPABASE_KEY`
+   - **JWT Secret** (in JWT Settings) → `SUPABASE_JWT_SECRET`
+
+6. **Start the development server**
+
+```bash
+pnpm run start:dev
+```
+
+The API will be available at `http://localhost:3000`
+
+### Available Scripts
+
+```bash
+# Development
+pnpm run start:dev       # Start with hot-reload
+
+# Production
+pnpm run build          # Build the project
+pnpm run start:prod     # Start in production mode
+
+# Testing
+pnpm run test           # Run unit tests
+pnpm run test:e2e       # Run end-to-end tests
+pnpm run test:cov       # Run tests with coverage
+
+# Database
+pnpm run db:studio      # Open Prisma Studio (Database GUI)
+pnpm run db:migrate     # Create and run migrations
+pnpm run db:generate    # Regenerate Prisma Client
+pnpm run db:check       # Check Supabase connection
+
+# Code Quality
+pnpm run lint           # Run ESLint
+pnpm run format         # Format code with Prettier
+```
+
+## 📚 API Documentation
+
+Comprehensive API documentation is available in [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
+
+### Quick API Overview
+
+**Base URL:** `http://localhost:3000`
+
+#### Authentication
+- `GET /auth/me` - Get current user (syncs with database)
+- **Note**: User registration/login is handled by Supabase client-side
+
+#### Profile
+- `GET /profile` - Get user profile
+- `PATCH /profile` - Update profile
+
+#### Pages
+- `POST /pages` - Create page
+- `GET /pages` - Get all pages
+- `GET /pages/:id` - Get single page
+- `PATCH /pages/:id` - Update page
+- `DELETE /pages/:id` - Delete page
+
+#### Blocks
+- `POST /blocks` - Create block
+- `GET /blocks?pageId=:id` - Get page blocks
+- `GET /blocks/:id` - Get single block
+- `PATCH /blocks/:id` - Update block
+- `DELETE /blocks/:id` - Delete block
+- `POST /blocks/reorder` - Reorder blocks
+
+For detailed request/response examples, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
+
+## 🧪 Testing
+
+### ✅ Test Results
+
+All API endpoints have been tested and verified working:
+
+**Authentication & Profile:**
+- ✅ `GET /profile` - Get user profile
+- ✅ `PATCH /profile` - Update profile
+
+**Pages Management:**
+- ✅ `GET /pages` - List all pages
+- ✅ `POST /pages` - Create page
+- ✅ `GET /pages/:id` - Get single page
+- ✅ `PATCH /pages/:id` - Update page title
+
+**Blocks Management:**
+- ✅ `POST /blocks` (TEXT, HEADING, CHECKLIST, IMAGE) - All block types working
+- ✅ `GET /blocks?pageId=:id` - Get page blocks
+- ✅ `PATCH /blocks/:id` - Update block
+- ✅ `DELETE /blocks/:id` - Delete block
+- ✅ `POST /blocks/reorder` - Drag & drop reordering
+
+### Getting Access Token
+
+**Option 1: Create user via Supabase Dashboard**
+1. Go to Supabase Dashboard → Authentication → Users
+2. Click "Add user" → "Create new user"
+3. Enable "Auto Confirm User"
+4. Create user
+
+**Option 2: Create user via Supabase API**
+```bash
+curl -X POST "https://YOUR_PROJECT.supabase.co/auth/v1/signup" \
+  -H "apikey: YOUR_SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123456"}'
+```
+
+**Get token:**
+```bash
+export TOKEN=$(curl -s -X POST "https://YOUR_PROJECT.supabase.co/auth/v1/token?grant_type=password" \
+  -H "apikey: YOUR_SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123456"}' | jq -r '.access_token')
+```
+
+### Testing with curl
+
+```bash
+# Set token
+export TOKEN="your-supabase-access-token"
+
+# Test profile
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/profile
+
+# Create page
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My Page"}' \
+  http://localhost:3000/pages
+
+# Create text block
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"TEXT","content":{"text":"Hello"},"pageId":"PAGE_ID","position":0}' \
+  http://localhost:3000/blocks
+```
+
+### Using Test Script
+
+```bash
+# Set token first
+export TOKEN="your-token"
+
+# Run test script
+./test-all-endpoints.sh
+```
+
+## 📁 Project Structure
+
+```
+backend-sealions/
+├── src/
+│   ├── auth/                   # Authentication module
+│   │   ├── dto/               # Data transfer objects
+│   │   ├── guards/            # Auth guards
+│   │   ├── strategies/        # Passport strategies
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   └── auth.module.ts
+│   ├── profile/               # Profile module
+│   │   ├── dto/
+│   │   ├── profile.controller.ts
+│   │   ├── profile.service.ts
+│   │   └── profile.module.ts
+│   ├── pages/                 # Pages module
+│   │   ├── dto/
+│   │   ├── pages.controller.ts
+│   │   ├── pages.service.ts
+│   │   └── pages.module.ts
+│   ├── blocks/                # Blocks module
+│   │   ├── dto/
+│   │   ├── blocks.controller.ts
+│   │   ├── blocks.service.ts
+│   │   └── blocks.module.ts
+│   ├── prisma/                # Prisma service
+│   │   ├── prisma.service.ts
+│   │   └── prisma.module.ts
+│   ├── app.module.ts          # Root module
+│   └── main.ts                # Application entry
+├── prisma/
+│   ├── schema.prisma          # Database schema
+│   └── migrations/            # Database migrations
+├── test/                      # Test files
+├── .env                       # Environment variables
+├── API_DOCUMENTATION.md       # API docs
+├── TEST_GUIDE.md             # Testing guide
+├── api-requests.http         # REST Client requests
+└── README.md                 # This file
+```
+
+## 🔒 Security Best Practices
+
+This project implements several security measures:
+
+- ✅ **Supabase Auth**: Enterprise-grade authentication with built-in security
+- ✅ **Token Validation**: Direct verification with Supabase API (no JWT secret needed)
+- ✅ Input validation with class-validator
+- ✅ CORS protection
+- ✅ SQL injection prevention (Prisma ORM)
+- ✅ User data isolation (users can only access their own data)
+- ✅ **Email Verification**: Optional email confirmation
+- ✅ **Secure Password Policy**: Managed by Supabase
+
+### Additional Recommendations for Production
+
+- Enable HTTPS
+- Implement rate limiting
+- Add request logging
+- Set up monitoring
+- Use environment-specific configurations
+- Configure Supabase RLS (Row Level Security) policies
+- Add API versioning
+- Use Supabase service role key only on server-side
+
+## 🚀 Deployment
+
+### Environment Variables for Production
+
+```env
+# Supabase Database
+DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[REGION].pooler.supabase.com:5432/postgres"
+
+# Supabase Auth
+SUPABASE_URL="https://[PROJECT_REF].supabase.co"
+SUPABASE_KEY="your-anon-key"
+SUPABASE_JWT_SECRET="your-jwt-secret"
+
+# Application
+PORT=3000
+FRONTEND_URL="https://your-frontend-domain.com"
+NODE_ENV="production"
+```
+
+### Deployment Steps
+
+1. Build the application:
+```bash
+pnpm run build
+```
+
+2. Run database migrations:
+```bash
+npx prisma migrate deploy
+```
+
+3. Start the production server:
+```bash
+pnpm run start:prod
+```
+
+### Deployment Platforms
+
+This application can be deployed to:
+- **Railway** (Recommended for PostgreSQL apps)
+- **Render**
+- **Heroku**
+- **AWS** (EC2, ECS, or Lambda)
+- **DigitalOcean**
+- **Vercel** (with Serverless Postgres)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 👨‍💻 Author
+
+Hulk Developed with ❤️ for the Notely project.
+
+## 🔗 Resources
+
+- [NestJS Documentation](https://docs.nestjs.com)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs)
+- [JWT.io](https://jwt.io) - JWT debugger

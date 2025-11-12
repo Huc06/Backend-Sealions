@@ -273,6 +273,11 @@ Comprehensive API documentation is available in [API_DOCUMENTATION.md](./API_DOC
 
 **Base URL:** `http://localhost:3000`
 
+### Swagger UI
+- URL: `http://localhost:3000/docs`
+- Use the `Authorize` button with Supabase access tokens (Bearer)
+- Customize path via `SWAGGER_PATH` environment variable
+
 #### Authentication
 - `GET /auth/me` - Get current user (syncs with database)
 - **Note**: User registration/login is handled by Supabase client-side

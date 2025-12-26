@@ -34,6 +34,8 @@ model Page {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   blocks    Block[]
   pageTags  PageTag[]
+  isDeleted Boolean    @default(false)
+  deletedAt DateTime?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -41,20 +43,24 @@ model Page {
   @@index([userId])
   @@index([userId, updatedAt])
   @@index([title])
+  @@index([userId, isDeleted])
 }
 
 model Block {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   type      BlockType
   content   Json
   position  Int
   pageId    String
-  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("blocks")
   @@index([pageId])
+  @@index([pageId, isDeleted])
 }
 
 model Tag {

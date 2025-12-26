@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Re
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -121,16 +122,44 @@ export class BlocksController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a block' })
+  @ApiOperation({ summary: 'Delete a block (moves to trash)' })
   @ApiParam({ name: 'id', description: 'Block ID', example: 'cmhvpvb3j00072gmbnz1dl3jc' })
   @ApiOkResponse({
-    description: 'Block deleted confirmation',
-    schema: { example: { message: 'Block deleted successfully' } },
+    description: 'Block moved to trash',
+    schema: { example: { message: 'Block moved to trash successfully' } },
   })
   @ApiNotFoundResponse({ description: 'Block not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async remove(@Request() req, @Param('id') id: string) {
     return this.blocksService.remove(id, req.user.id);
+  }
+
+  @Post(':id/restore')
+  @ApiOperation({ summary: 'Restore a deleted block from trash' })
+  @ApiParam({ name: 'id', description: 'Block ID', example: 'cmhvpvb3j00072gmbnz1dl3jc' })
+  @ApiOkResponse({
+    description: 'Block restored successfully',
+    schema: { example: { message: 'Block restored successfully' } },
+  })
+  @ApiBadRequestResponse({ description: 'Block is not deleted' })
+  @ApiNotFoundResponse({ description: 'Block not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async restore(@Request() req, @Param('id') id: string) {
+    return this.blocksService.restore(id, req.user.id);
+  }
+
+  @Delete(':id/permanent')
+  @ApiOperation({ summary: 'Permanently delete a block (must be in trash)' })
+  @ApiParam({ name: 'id', description: 'Block ID', example: 'cmhvpvb3j00072gmbnz1dl3jc' })
+  @ApiOkResponse({
+    description: 'Block permanently deleted',
+    schema: { example: { message: 'Block permanently deleted' } },
+  })
+  @ApiBadRequestResponse({ description: 'Block must be in trash' })
+  @ApiNotFoundResponse({ description: 'Block not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async permanentDelete(@Request() req, @Param('id') id: string) {
+    return this.blocksService.permanentDelete(id, req.user.id);
   }
 
   @Post('reorder')

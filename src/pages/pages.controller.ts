@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Re
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -156,16 +157,64 @@ export class PagesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a page' })
+  @ApiOperation({ summary: 'Delete a page (moves to trash)' })
   @ApiParam({ name: 'id', description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
   @ApiOkResponse({
-    description: 'Page deleted confirmation',
-    schema: { example: { message: 'Page deleted successfully' } },
+    description: 'Page moved to trash',
+    schema: { example: { message: 'Page moved to trash successfully' } },
   })
   @ApiNotFoundResponse({ description: 'Page not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async remove(@Request() req, @Param('id') id: string) {
     return this.pagesService.remove(id, req.user.id);
+  }
+
+  @Get('trash')
+  @ApiOperation({ summary: 'Get all deleted pages (trash)' })
+  @ApiOkResponse({
+    description: 'List of deleted pages',
+    schema: {
+      example: [
+        {
+          id: 'cmhvq1234000012gmbwreufjj4',
+          title: 'Deleted Page',
+          isDeleted: true,
+          deletedAt: '2025-11-12T08:06:31.943Z',
+        },
+      ],
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getTrash(@Request() req) {
+    return this.pagesService.getTrash(req.user.id);
+  }
+
+  @Post(':id/restore')
+  @ApiOperation({ summary: 'Restore a deleted page from trash' })
+  @ApiParam({ name: 'id', description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
+  @ApiOkResponse({
+    description: 'Page restored successfully',
+    schema: { example: { message: 'Page restored successfully' } },
+  })
+  @ApiBadRequestResponse({ description: 'Page is not deleted' })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async restore(@Request() req, @Param('id') id: string) {
+    return this.pagesService.restore(id, req.user.id);
+  }
+
+  @Delete(':id/permanent')
+  @ApiOperation({ summary: 'Permanently delete a page (must be in trash)' })
+  @ApiParam({ name: 'id', description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
+  @ApiOkResponse({
+    description: 'Page permanently deleted',
+    schema: { example: { message: 'Page permanently deleted' } },
+  })
+  @ApiBadRequestResponse({ description: 'Page must be in trash' })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async permanentDelete(@Request() req, @Param('id') id: string) {
+    return this.pagesService.permanentDelete(id, req.user.id);
   }
 }
 

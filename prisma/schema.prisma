@@ -22,21 +22,25 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   pages     Page[]
+  tags      Tag[]
 
   @@map("users")
 }
 
 model Page {
-  id        String   @id @default(cuid())
-  title     String   @default("Untitled")
+  id        String     @id @default(cuid())
+  title     String     @default("Untitled")
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   blocks    Block[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  pageTags  PageTag[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@map("pages")
   @@index([userId])
+  @@index([userId, updatedAt])
+  @@index([title])
 }
 
 model Block {
@@ -51,6 +55,32 @@ model Block {
 
   @@map("blocks")
   @@index([pageId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pageTags  PageTag[]
+  createdAt DateTime  @default(now())
+
+  @@unique([name, userId])
+  @@index([userId])
+  @@map("tags")
+}
+
+model PageTag {
+  pageId    String
+  tagId     String
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@id([pageId, tagId])
+  @@index([pageId])
+  @@index([tagId])
+  @@map("page_tags")
 }
 
 enum BlockType {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -7,6 +7,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -43,7 +44,33 @@ export class PagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all pages of authenticated user' })
+  @ApiOperation({ summary: 'List all pages of authenticated user with search and filter' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search pages by title',
+    example: 'meeting',
+  })
+  @ApiQuery({
+    name: 'tagIds',
+    required: false,
+    description: 'Filter by tag IDs (comma-separated)',
+    example: 'cmhvt1234000012gmbwreufjj4,cmhvt1234000013gmbwreufjj5',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Sort by field',
+    enum: ['updatedAt', 'createdAt', 'title'],
+    example: 'updatedAt',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    description: 'Sort order',
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
   @ApiOkResponse({
     description: 'List of pages',
     schema: {
@@ -53,13 +80,33 @@ export class PagesController {
           title: 'My Page',
           createdAt: '2025-11-12T08:06:31.943Z',
           updatedAt: '2025-11-12T08:06:31.943Z',
+          pageTags: [
+            {
+              tag: {
+                id: 'cmhvt1234000012gmbwreufjj4',
+                name: 'work',
+              },
+            },
+          ],
         },
       ],
     },
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async findAll(@Request() req) {
-    return this.pagesService.findAll(req.user.id);
+  async findAll(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('tagIds') tagIds?: string,
+    @Query('sortBy') sortBy?: 'updatedAt' | 'createdAt' | 'title',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    const tagIdsArray = tagIds ? tagIds.split(',').filter(Boolean) : undefined;
+    return this.pagesService.findAll(req.user.id, {
+      search,
+      tagIds: tagIdsArray,
+      sortBy,
+      sortOrder,
+    });
   }
 
   @Get(':id')

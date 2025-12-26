@@ -29,18 +29,56 @@ export class PagesService {
     return page;
   }
 
-  async findAll(userId: string) {
+  async findAll(
+    userId: string,
+    options?: {
+      search?: string;
+      tagIds?: string[];
+      sortBy?: 'updatedAt' | 'createdAt' | 'title';
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
+    const where: any = {
+      userId,
+    };
+
+    // Search by title
+    if (options?.search) {
+      where.title = {
+        contains: options.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Filter by tags
+    if (options?.tagIds && options.tagIds.length > 0) {
+      where.pageTags = {
+        some: {
+          tagId: {
+            in: options.tagIds,
+          },
+        },
+      };
+    }
+
+    // Sort options
+    const sortBy = options?.sortBy || 'updatedAt';
+    const sortOrder = options?.sortOrder || 'desc';
+
     const pages = await this.prisma.page.findMany({
-      where: {
-        userId,
-      },
+      where,
       orderBy: {
-        updatedAt: 'desc',
+        [sortBy]: sortOrder,
       },
       include: {
         blocks: {
           orderBy: {
             position: 'asc',
+          },
+        },
+        pageTags: {
+          include: {
+            tag: true,
           },
         },
       },
@@ -56,6 +94,11 @@ export class PagesService {
         blocks: {
           orderBy: {
             position: 'asc',
+          },
+        },
+        pageTags: {
+          include: {
+            tag: true,
           },
         },
       },

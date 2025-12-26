@@ -39,7 +39,7 @@ export class BlocksService {
     return block;
   }
 
-  async findAll(pageId: string, userId: string) {
+  async findAll(pageId: string, userId: string, search?: string) {
     // Verify page belongs to user
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
@@ -57,6 +57,15 @@ export class BlocksService {
       where: { pageId },
       orderBy: { position: 'asc' },
     });
+
+    // Filter blocks by search term in content (JSON search)
+    if (search) {
+      const searchLower = search.toLowerCase();
+      return blocks.filter((block) => {
+        const contentStr = JSON.stringify(block.content).toLowerCase();
+        return contentStr.includes(searchLower);
+      });
+    }
 
     return blocks;
   }

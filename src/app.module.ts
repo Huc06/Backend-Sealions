@@ -8,6 +8,7 @@ import { ProfileModule } from './profile/profile.module';
 import { PagesModule } from './pages/pages.module';
 import { BlocksModule } from './blocks/blocks.module';
 import { StorageModule } from './storage/storage.module';
+import { TagsModule } from './tags/tags.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StorageModule } from './storage/storage.module';
     PagesModule,
     BlocksModule,
     StorageModule,
+    TagsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -47,8 +47,9 @@ export class BlocksController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List blocks in a page' })
+  @ApiOperation({ summary: 'List blocks in a page with optional search' })
   @ApiQuery({ name: 'pageId', required: true, description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search term to filter blocks by content', example: 'hello' })
   @ApiOkResponse({
     description: 'List of blocks',
     schema: {
@@ -64,8 +65,12 @@ export class BlocksController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async findAll(@Request() req, @Query('pageId') pageId: string) {
-    return this.blocksService.findAll(pageId, req.user.id);
+  async findAll(
+    @Request() req,
+    @Query('pageId') pageId: string,
+    @Query('search') search?: string,
+  ) {
+    return this.blocksService.findAll(pageId, req.user.id, search);
   }
 
   @Get(':id')

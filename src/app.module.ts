@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { PagesModule } from './pages/pages.module';
 import { BlocksModule } from './blocks/blocks.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { BlocksModule } from './blocks/blocks.module';
     ProfileModule,
     PagesModule,
     BlocksModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,14 +2,20 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { Permission } from '../sharing/dto/share-page.dto';
 
 @Injectable()
 export class PagesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sharingService: SharingService,
+  ) {}
 
   async create(userId: string, createPageDto: CreatePageDto) {
     const page = await this.prisma.page.create({
@@ -29,16 +35,188 @@ export class PagesService {
     return page;
   }
 
-  async findAll(userId: string) {
+  async findAll(
+    userId: string,
+    options?: {
+      search?: string;
+      tagIds?: string[];
+      sortBy?: 'updatedAt' | 'createdAt' | 'title';
+      sortOrder?: 'asc' | 'desc';
+      includeShared?: boolean; // Include pages shared with user
+    },
+  ) {
+    // Get pages owned by user
+    const where: any = {
+      userId,
+      isDeleted: false, // Exclude deleted pages by default
+    };
+
+    // Search by title
+    if (options?.search) {
+      where.title = {
+        contains: options.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Filter by tags
+    if (options?.tagIds && options.tagIds.length > 0) {
+      where.pageTags = {
+        some: {
+          tagId: {
+            in: options.tagIds,
+          },
+        },
+      };
+    }
+
+    // Sort options
+    const sortBy = options?.sortBy || 'updatedAt';
+    const sortOrder = options?.sortOrder || 'desc';
+
     const pages = await this.prisma.page.findMany({
-      where: {
-        userId,
-      },
+      where,
       orderBy: {
-        updatedAt: 'desc',
+        [sortBy]: sortOrder,
       },
       include: {
         blocks: {
+          where: { isDeleted: false },
+          orderBy: {
+            position: 'asc',
+          },
+        },
+        pageTags: {
+          include: {
+            tag: true,
+          },
+        },
+        shares: options?.includeShared
+          ? {
+              where: { sharedWith: userId },
+            }
+          : false,
+      },
+    });
+
+    // If includeShared is true, also get pages shared with user
+    if (options?.includeShared) {
+      const sharedPages = await this.prisma.pageShare.findMany({
+        where: {
+          sharedWith: userId,
+          page: {
+            isDeleted: false,
+          },
+        },
+        include: {
+          page: {
+            include: {
+              blocks: {
+                where: { isDeleted: false },
+                orderBy: {
+                  position: 'asc',
+                },
+              },
+              pageTags: {
+                include: {
+                  tag: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Merge shared pages with owned pages
+      const sharedPagesData = sharedPages.map((share) => ({
+        ...share.page,
+        sharedPermission: share.permission,
+        sharedAt: share.createdAt,
+      }));
+
+      return [...pages, ...sharedPagesData].sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        }
+        return aValue < bValue ? 1 : -1;
+      });
+    }
+
+    return pages;
+  }
+
+  async findOne(id: string, userId: string, includeDeleted: boolean = false) {
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+      include: {
+        blocks: {
+          where: includeDeleted ? undefined : { isDeleted: false },
+          orderBy: {
+            position: 'asc',
+          },
+        },
+        pageTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
+    });
+
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    // Check if user is owner or has access via sharing
+    const hasAccess = await this.sharingService.checkPermission(
+      id,
+      userId,
+      Permission.VIEW,
+    );
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    return page;
+  }
+
+  async update(id: string, userId: string, updatePageDto: UpdatePageDto) {
+    // Check if page exists and user has EDIT permission
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+    });
+
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    const hasEditPermission = await this.sharingService.checkPermission(
+      id,
+      userId,
+      Permission.EDIT,
+    );
+
+    if (!hasEditPermission) {
+      throw new ForbiddenException('You do not have permission to edit this page');
+    }
+
+    const updatedPage = await this.prisma.page.update({
+      where: { id },
+      data: updatePageDto,
+      include: {
+        blocks: {
+          where: { isDeleted: false },
           orderBy: {
             position: 'asc',
           },
@@ -46,19 +224,68 @@ export class PagesService {
       },
     });
 
-    return pages;
+    return updatedPage;
   }
 
-  async findOne(id: string, userId: string) {
-    const page = await this.prisma.page.findUnique({
+  async remove(id: string, userId: string) {
+    // Check if page exists and belongs to user
+    const page = await this.findOne(id, userId, true);
+
+    // Soft delete: mark as deleted
+    await this.prisma.page.update({
       where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    // Also soft delete all blocks in this page
+    await this.prisma.block.updateMany({
+      where: { pageId: id, isDeleted: false },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return { message: 'Page moved to trash successfully' };
+  }
+
+  /**
+   * Get all deleted pages (trash)
+   */
+  async getTrash(userId: string) {
+    return this.prisma.page.findMany({
+      where: {
+        userId,
+        isDeleted: true,
+      },
+      orderBy: {
+        deletedAt: 'desc',
+      },
       include: {
         blocks: {
+          where: { isDeleted: true },
           orderBy: {
             position: 'asc',
           },
         },
+        pageTags: {
+          include: {
+            tag: true,
+          },
+        },
       },
+    });
+  }
+
+  /**
+   * Restore a deleted page
+   */
+  async restore(id: string, userId: string) {
+    const page = await this.prisma.page.findUnique({
+      where: { id },
     });
 
     if (!page) {
@@ -69,37 +296,57 @@ export class PagesService {
       throw new ForbiddenException('Access denied');
     }
 
-    return page;
-  }
+    if (!page.isDeleted) {
+      throw new BadRequestException('Page is not deleted');
+    }
 
-  async update(id: string, userId: string, updatePageDto: UpdatePageDto) {
-    // Check if page exists and belongs to user
-    await this.findOne(id, userId);
-
-    const page = await this.prisma.page.update({
+    // Restore page
+    await this.prisma.page.update({
       where: { id },
-      data: updatePageDto,
-      include: {
-        blocks: {
-          orderBy: {
-            position: 'asc',
-          },
-        },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
       },
     });
 
-    return page;
+    // Restore all blocks in this page
+    await this.prisma.block.updateMany({
+      where: { pageId: id, isDeleted: true },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+
+    return { message: 'Page restored successfully' };
   }
 
-  async remove(id: string, userId: string) {
-    // Check if page exists and belongs to user
-    await this.findOne(id, userId);
+  /**
+   * Permanently delete a page
+   */
+  async permanentDelete(id: string, userId: string) {
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+    });
 
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    if (page.userId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    if (!page.isDeleted) {
+      throw new BadRequestException('Page must be in trash before permanent deletion');
+    }
+
+    // Hard delete (cascade will delete blocks and pageTags)
     await this.prisma.page.delete({
       where: { id },
     });
 
-    return { message: 'Page deleted successfully' };
+    return { message: 'Page permanently deleted' };
   }
 }
 

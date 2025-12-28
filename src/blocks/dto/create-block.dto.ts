@@ -6,6 +6,7 @@ export enum BlockType {
   HEADING = 'HEADING',
   CHECKLIST = 'CHECKLIST',
   IMAGE = 'IMAGE',
+  FILE = 'FILE',
 }
 
 export class CreateBlockDto {
@@ -20,7 +21,13 @@ export class CreateBlockDto {
 
   @ApiProperty({
     description: 'Content payload for the block (structure depends on block type)',
-    example: { text: 'Hello World', bold: false },
+    examples: {
+      TEXT: { value: { text: 'Hello World', bold: false } },
+      HEADING: { value: { text: 'My Heading', level: 1 } },
+      CHECKLIST: { value: { items: [{ text: 'Task 1', checked: false }] } },
+      IMAGE: { value: { url: 'https://example.com/image.jpg', caption: 'My image' } },
+      FILE: { value: { url: 'https://res.cloudinary.com/cloud/image/upload/v123/file.pdf', name: 'document.pdf', type: 'pdf', size: 1024000 } },
+    },
   })
   @IsObject()
   @IsNotEmpty()

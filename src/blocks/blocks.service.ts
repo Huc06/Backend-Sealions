@@ -2,18 +2,24 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBlockDto } from './dto/create-block.dto';
 import { UpdateBlockDto } from './dto/update-block.dto';
 import { ReorderBlocksDto } from './dto/reorder-blocks.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { Permission } from '../sharing/dto/share-page.dto';
 
 @Injectable()
 export class BlocksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sharingService: SharingService,
+  ) {}
 
   async create(userId: string, createBlockDto: CreateBlockDto) {
-    // Verify page belongs to user
+    // Verify page exists and user has EDIT permission
     const page = await this.prisma.page.findUnique({
       where: { id: createBlockDto.pageId },
     });
@@ -22,8 +28,14 @@ export class BlocksService {
       throw new NotFoundException('Page not found');
     }
 
-    if (page.userId !== userId) {
-      throw new ForbiddenException('Access denied');
+    const hasEditPermission = await this.sharingService.checkPermission(
+      createBlockDto.pageId,
+      userId,
+      Permission.EDIT,
+    );
+
+    if (!hasEditPermission) {
+      throw new ForbiddenException('You do not have permission to edit this page');
     }
 
     // Create block
@@ -39,7 +51,7 @@ export class BlocksService {
     return block;
   }
 
-  async findAll(pageId: string, userId: string) {
+  async findAll(pageId: string, userId: string, search?: string) {
     // Verify page belongs to user
     const page = await this.prisma.page.findUnique({
       where: { id: pageId },
@@ -49,14 +61,33 @@ export class BlocksService {
       throw new NotFoundException('Page not found');
     }
 
-    if (page.userId !== userId) {
-      throw new ForbiddenException('Access denied');
+    // Check if user has VIEW permission
+    const hasViewPermission = await this.sharingService.checkPermission(
+      pageId,
+      userId,
+      Permission.VIEW,
+    );
+
+    if (!hasViewPermission) {
+      throw new ForbiddenException('You do not have permission to view this page');
     }
 
     const blocks = await this.prisma.block.findMany({
-      where: { pageId },
+      where: {
+        pageId,
+        isDeleted: false, // Exclude deleted blocks
+      },
       orderBy: { position: 'asc' },
     });
+
+    // Filter blocks by search term in content (JSON search)
+    if (search) {
+      const searchLower = search.toLowerCase();
+      return blocks.filter((block) => {
+        const contentStr = JSON.stringify(block.content).toLowerCase();
+        return contentStr.includes(searchLower);
+      });
+    }
 
     return blocks;
   }
@@ -71,37 +102,126 @@ export class BlocksService {
       throw new NotFoundException('Block not found');
     }
 
-    if (block.page.userId !== userId) {
-      throw new ForbiddenException('Access denied');
+    // Check if user has VIEW permission
+    const hasViewPermission = await this.sharingService.checkPermission(
+      block.pageId,
+      userId,
+      Permission.VIEW,
+    );
+
+    if (!hasViewPermission) {
+      throw new ForbiddenException('You do not have permission to view this page');
     }
 
     return block;
   }
 
   async update(id: string, userId: string, updateBlockDto: UpdateBlockDto) {
-    // Check if block exists and belongs to user
-    await this.findOne(id, userId);
+    // Check if block exists
+    const block = await this.findOne(id, userId);
 
-    const block = await this.prisma.block.update({
+    // Check if user has EDIT permission
+    const hasEditPermission = await this.sharingService.checkPermission(
+      block.pageId,
+      userId,
+      Permission.EDIT,
+    );
+
+    if (!hasEditPermission) {
+      throw new ForbiddenException('You do not have permission to edit this page');
+    }
+
+    const updatedBlock = await this.prisma.block.update({
       where: { id },
       data: updateBlockDto,
     });
 
-    return block;
+    return updatedBlock;
   }
 
   async remove(id: string, userId: string) {
     // Check if block exists and belongs to user
     const block = await this.findOne(id, userId);
 
+    // Soft delete: mark as deleted
+    await this.prisma.block.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    // Reorder remaining blocks (only non-deleted)
+    await this.reorderAfterDelete(block.pageId, block.position);
+
+    return { message: 'Block moved to trash successfully' };
+  }
+
+  /**
+   * Restore a deleted block
+   */
+  async restore(id: string, userId: string) {
+    const block = await this.prisma.block.findUnique({
+      where: { id },
+      include: { page: true },
+    });
+
+    if (!block) {
+      throw new NotFoundException('Block not found');
+    }
+
+    if (block.page.userId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    if (!block.isDeleted) {
+      throw new BadRequestException('Block is not deleted');
+    }
+
+    await this.prisma.block.update({
+      where: { id },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+
+    return { message: 'Block restored successfully' };
+  }
+
+  /**
+   * Permanently delete a block
+   */
+  async permanentDelete(id: string, userId: string) {
+    const block = await this.prisma.block.findUnique({
+      where: { id },
+      include: { page: true },
+    });
+
+    if (!block) {
+      throw new NotFoundException('Block not found');
+    }
+
+    if (block.page.userId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    if (!block.isDeleted) {
+      throw new BadRequestException('Block must be in trash before permanent deletion');
+    }
+
+    const position = block.position;
+
+    // Hard delete
     await this.prisma.block.delete({
       where: { id },
     });
 
     // Reorder remaining blocks
-    await this.reorderAfterDelete(block.pageId, block.position);
+    await this.reorderAfterDelete(block.pageId, position);
 
-    return { message: 'Block deleted successfully' };
+    return { message: 'Block permanently deleted' };
   }
 
   async reorderBlocks(
@@ -118,14 +238,24 @@ export class BlocksService {
       throw new NotFoundException('Page not found');
     }
 
-    if (page.userId !== userId) {
-      throw new ForbiddenException('Access denied');
+    // Check if user has VIEW permission
+    const hasViewPermission = await this.sharingService.checkPermission(
+      pageId,
+      userId,
+      Permission.VIEW,
+    );
+
+    if (!hasViewPermission) {
+      throw new ForbiddenException('You do not have permission to view this page');
     }
 
-    // Update positions
+    // Update positions (only for non-deleted blocks)
     const updates = reorderBlocksDto.blockIds.map((blockId, index) =>
       this.prisma.block.update({
-        where: { id: blockId },
+        where: {
+          id: blockId,
+          isDeleted: false,
+        },
         data: { position: index },
       }),
     );
@@ -137,10 +267,11 @@ export class BlocksService {
   }
 
   private async reorderAfterDelete(pageId: string, deletedPosition: number) {
-    // Get all blocks after the deleted position
+    // Get all non-deleted blocks after the deleted position
     const blocks = await this.prisma.block.findMany({
       where: {
         pageId,
+        isDeleted: false,
         position: {
           gt: deletedPosition,
         },

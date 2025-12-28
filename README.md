@@ -33,11 +33,19 @@ A powerful and flexible backend API for Notely - a modern note-taking applicatio
 - ✅ **Heading Blocks**: Three levels (H1, H2, H3)
 - ✅ **Checklist Blocks**: Interactive todo lists with checkable items
 - ✅ **Image Blocks**: Images from URLs with captions
+- ✅ **File Blocks**: Upload files directly (images, videos, PDFs, documents)
 - ✅ **Drag & Drop**: Reorder blocks with position management
 - ✅ **Auto-save**: All changes saved to database
 - ✅ CRUD operations for all block types
 
-### 4. Security Features
+### 4. File Upload & Storage
+- ✅ **Cloudinary Integration**: Upload files directly to Cloudinary
+- ✅ **Multiple File Types**: Support for images, videos, PDFs, documents
+- ✅ **File Optimization**: Automatic image optimization and format conversion
+- ✅ **Secure Storage**: Files stored securely in Cloudinary
+- ✅ **File Management**: Upload, delete, and manage files via API
+
+### 5. Security Features
 - ✅ **Supabase Auth**: Enterprise-grade authentication
 - ✅ **Token Validation**: Direct verification with Supabase API
 - ✅ User data isolation
@@ -130,7 +138,7 @@ Page
 
 Block
 ├── id: String (CUID)
-├── type: BlockType (TEXT | HEADING | CHECKLIST | IMAGE)
+├── type: BlockType (TEXT | HEADING | CHECKLIST | IMAGE | FILE)
 ├── content: Json
 ├── position: Int
 ├── pageId: String
@@ -177,7 +185,16 @@ pnpm install
 **Bước 3: Tạo Tables**
 Chạy SQL script trong Supabase SQL Editor để tạo tables (xem file `create-tables.sql` hoặc dùng Prisma migrations)
 
-**Bước 4: Cấu hình `.env`**
+**Bước 4: Cấu hình Cloudinary (cho File Upload)**
+
+1. Tạo tài khoản tại https://cloudinary.com (free tier available)
+2. Vào Dashboard → Settings → API Keys
+3. Copy các giá trị:
+   - **Cloud Name** → `CLOUDINARY_CLOUD_NAME`
+   - **API Key** → `CLOUDINARY_API_KEY`
+   - **API Secret** → `CLOUDINARY_API_SECRET`
+
+**Bước 5: Cấu hình `.env`**
 ```env
 # Supabase Database
 DATABASE_URL="postgresql://postgres.mhjfgywtpauumlexnxfp:YOUR_PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
@@ -187,6 +204,11 @@ DIRECT_URL="postgresql://postgres.mhjfgywtpauumlexnxfp:YOUR_PASSWORD@aws-1-ap-so
 SUPABASE_URL="https://mhjfgywtpauumlexnxfp.supabase.co"
 SUPABASE_KEY="your-anon-key-from-supabase"
 SUPABASE_JWT_SECRET="your-jwt-secret-from-supabase"
+
+# Cloudinary (File Upload)
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
 
 # Application
 PORT=3000
@@ -211,10 +233,17 @@ pnpm run db:check
 
 **Option B: Create Tables Manually (If migrations fail)**
 1. Go to Supabase Dashboard → SQL Editor
-2. Run the SQL script to create tables (see `prisma/schema.prisma` for schema)
+2. Run the SQL scripts to create tables:
+   - For initial tables: see `prisma/schema.prisma` for schema
+   - For sharing & comments: run `create-sharing-comments-tables.sql`
 3. Or use Prisma db push:
 ```bash
 npx prisma db push --accept-data-loss
+```
+
+**Note:** After creating tables, regenerate Prisma Client:
+```bash
+npx prisma generate
 ```
 
 5. **Configure Supabase Authentication**
@@ -301,6 +330,26 @@ Comprehensive API documentation is available in [API_DOCUMENTATION.md](./API_DOC
 - `DELETE /blocks/:id` - Delete block
 - `POST /blocks/reorder` - Reorder blocks
 
+#### Storage (File Upload)
+- `POST /storage/upload` - Upload a single file (images, videos, PDFs, documents)
+- `POST /storage/upload/multiple` - Upload multiple files
+- `DELETE /storage/:publicId` - Delete a file from Cloudinary
+
+#### Sharing & Permissions
+- `POST /sharing/pages/:pageId/share` - Share a page with another user
+- `GET /sharing/pages/shared-with-me` - Get all pages shared with me
+- `GET /sharing/pages/shared-by-me` - Get all pages I have shared
+- `GET /sharing/pages/:pageId/shares` - Get users who have access to a page
+- `PATCH /sharing/pages/:pageId/share/:userId` - Update permission for shared page
+- `DELETE /sharing/pages/:pageId/share/:userId` - Unshare a page
+
+#### Comments & Annotations
+- `POST /comments/blocks/:blockId` - Create a comment on a block
+- `GET /comments/blocks/:blockId` - Get all comments for a block (threaded)
+- `GET /comments/:id` - Get comment by ID
+- `PATCH /comments/:id` - Update a comment
+- `DELETE /comments/:id` - Delete a comment
+
 For detailed request/response examples, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## 🧪 Testing
@@ -320,11 +369,29 @@ All API endpoints have been tested and verified working:
 - ✅ `PATCH /pages/:id` - Update page title
 
 **Blocks Management:**
-- ✅ `POST /blocks` (TEXT, HEADING, CHECKLIST, IMAGE) - All block types working
+- ✅ `POST /blocks` (TEXT, HEADING, CHECKLIST, IMAGE, FILE) - All block types working
 - ✅ `GET /blocks?pageId=:id` - Get page blocks
 - ✅ `PATCH /blocks/:id` - Update block
 - ✅ `DELETE /blocks/:id` - Delete block
 - ✅ `POST /blocks/reorder` - Drag & drop reordering
+
+**File Upload:**
+- ✅ `POST /storage/upload` - Upload single file to Cloudinary
+- ✅ `POST /storage/upload/multiple` - Upload multiple files
+- ✅ `DELETE /storage/:publicId` - Delete file from Cloudinary
+
+**Sharing & Permissions:**
+- ✅ `POST /sharing/pages/:pageId/share` - Share page with user
+- ✅ `GET /sharing/pages/shared-with-me` - Get shared pages
+- ✅ `GET /sharing/pages/shared-by-me` - Get pages I shared
+- ✅ `PATCH /sharing/pages/:pageId/share/:userId` - Update permission
+- ✅ `DELETE /sharing/pages/:pageId/share/:userId` - Unshare page
+
+**Comments & Annotations:**
+- ✅ `POST /comments/blocks/:blockId` - Create comment
+- ✅ `GET /comments/blocks/:blockId` - Get comments (threaded)
+- ✅ `PATCH /comments/:id` - Update comment
+- ✅ `DELETE /comments/:id` - Delete comment
 
 ### Getting Access Token
 
@@ -463,6 +530,11 @@ SUPABASE_URL="https://[PROJECT_REF].supabase.co"
 SUPABASE_KEY="your-anon-key"
 SUPABASE_JWT_SECRET="your-jwt-secret"
 
+# Cloudinary (File Upload)
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+
 # Application
 PORT=3000
 FRONTEND_URL="https://your-frontend-domain.com"
@@ -507,6 +579,11 @@ This project is licensed under the MIT License.
 ## 👨‍💻 Author
 
 Hulk Developed with ❤️ for the Notely project.
+
+## 📖 Additional Documentation
+
+- **[TEST_GUIDE_SHARING_COMMENTS.md](./TEST_GUIDE_SHARING_COMMENTS.md)** - Complete step-by-step test guide for Sharing & Comments features
+- **[create-sharing-comments-tables.sql](./create-sharing-comments-tables.sql)** - SQL script to create sharing and comments tables
 
 ## 🔗 Resources
 

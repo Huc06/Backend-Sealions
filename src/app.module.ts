@@ -7,6 +7,10 @@ import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { PagesModule } from './pages/pages.module';
 import { BlocksModule } from './blocks/blocks.module';
+import { StorageModule } from './storage/storage.module';
+import { TagsModule } from './tags/tags.module';
+import { SharingModule } from './sharing/sharing.module';
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
   imports: [
@@ -18,6 +22,10 @@ import { BlocksModule } from './blocks/blocks.module';
     ProfileModule,
     PagesModule,
     BlocksModule,
+    StorageModule,
+    TagsModule,
+    SharingModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

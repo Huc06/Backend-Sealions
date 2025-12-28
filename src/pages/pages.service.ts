@@ -7,10 +7,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { SharingService } from '../sharing/sharing.service';
+import { Permission } from '../sharing/dto/share-page.dto';
 
 @Injectable()
 export class PagesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sharingService: SharingService,
+  ) {}
 
   async create(userId: string, createPageDto: CreatePageDto) {
     const page = await this.prisma.page.create({
@@ -37,8 +42,10 @@ export class PagesService {
       tagIds?: string[];
       sortBy?: 'updatedAt' | 'createdAt' | 'title';
       sortOrder?: 'asc' | 'desc';
+      includeShared?: boolean; // Include pages shared with user
     },
   ) {
+    // Get pages owned by user
     const where: any = {
       userId,
       isDeleted: false, // Exclude deleted pages by default
@@ -74,6 +81,7 @@ export class PagesService {
       },
       include: {
         blocks: {
+          where: { isDeleted: false },
           orderBy: {
             position: 'asc',
           },
@@ -83,8 +91,66 @@ export class PagesService {
             tag: true,
           },
         },
+        shares: options?.includeShared
+          ? {
+              where: { sharedWith: userId },
+            }
+          : false,
       },
     });
+
+    // If includeShared is true, also get pages shared with user
+    if (options?.includeShared) {
+      const sharedPages = await this.prisma.pageShare.findMany({
+        where: {
+          sharedWith: userId,
+          page: {
+            isDeleted: false,
+          },
+        },
+        include: {
+          page: {
+            include: {
+              blocks: {
+                where: { isDeleted: false },
+                orderBy: {
+                  position: 'asc',
+                },
+              },
+              pageTags: {
+                include: {
+                  tag: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Merge shared pages with owned pages
+      const sharedPagesData = sharedPages.map((share) => ({
+        ...share.page,
+        sharedPermission: share.permission,
+        sharedAt: share.createdAt,
+      }));
+
+      return [...pages, ...sharedPagesData].sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        }
+        return aValue < bValue ? 1 : -1;
+      });
+    }
 
     return pages;
   }
@@ -111,7 +177,14 @@ export class PagesService {
       throw new NotFoundException('Page not found');
     }
 
-    if (page.userId !== userId) {
+    // Check if user is owner or has access via sharing
+    const hasAccess = await this.sharingService.checkPermission(
+      id,
+      userId,
+      Permission.VIEW,
+    );
+
+    if (!hasAccess) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -119,14 +192,31 @@ export class PagesService {
   }
 
   async update(id: string, userId: string, updatePageDto: UpdatePageDto) {
-    // Check if page exists and belongs to user
-    await this.findOne(id, userId);
+    // Check if page exists and user has EDIT permission
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+    });
 
-    const page = await this.prisma.page.update({
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+
+    const hasEditPermission = await this.sharingService.checkPermission(
+      id,
+      userId,
+      Permission.EDIT,
+    );
+
+    if (!hasEditPermission) {
+      throw new ForbiddenException('You do not have permission to edit this page');
+    }
+
+    const updatedPage = await this.prisma.page.update({
       where: { id },
       data: updatePageDto,
       include: {
         blocks: {
+          where: { isDeleted: false },
           orderBy: {
             position: 'asc',
           },
@@ -134,7 +224,7 @@ export class PagesService {
       },
     });
 
-    return page;
+    return updatedPage;
   }
 
   async remove(id: string, userId: string) {

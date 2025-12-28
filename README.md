@@ -233,10 +233,17 @@ pnpm run db:check
 
 **Option B: Create Tables Manually (If migrations fail)**
 1. Go to Supabase Dashboard → SQL Editor
-2. Run the SQL script to create tables (see `prisma/schema.prisma` for schema)
+2. Run the SQL scripts to create tables:
+   - For initial tables: see `prisma/schema.prisma` for schema
+   - For sharing & comments: run `create-sharing-comments-tables.sql`
 3. Or use Prisma db push:
 ```bash
 npx prisma db push --accept-data-loss
+```
+
+**Note:** After creating tables, regenerate Prisma Client:
+```bash
+npx prisma generate
 ```
 
 5. **Configure Supabase Authentication**
@@ -328,6 +335,21 @@ Comprehensive API documentation is available in [API_DOCUMENTATION.md](./API_DOC
 - `POST /storage/upload/multiple` - Upload multiple files
 - `DELETE /storage/:publicId` - Delete a file from Cloudinary
 
+#### Sharing & Permissions
+- `POST /sharing/pages/:pageId/share` - Share a page with another user
+- `GET /sharing/pages/shared-with-me` - Get all pages shared with me
+- `GET /sharing/pages/shared-by-me` - Get all pages I have shared
+- `GET /sharing/pages/:pageId/shares` - Get users who have access to a page
+- `PATCH /sharing/pages/:pageId/share/:userId` - Update permission for shared page
+- `DELETE /sharing/pages/:pageId/share/:userId` - Unshare a page
+
+#### Comments & Annotations
+- `POST /comments/blocks/:blockId` - Create a comment on a block
+- `GET /comments/blocks/:blockId` - Get all comments for a block (threaded)
+- `GET /comments/:id` - Get comment by ID
+- `PATCH /comments/:id` - Update a comment
+- `DELETE /comments/:id` - Delete a comment
+
 For detailed request/response examples, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## 🧪 Testing
@@ -357,6 +379,19 @@ All API endpoints have been tested and verified working:
 - ✅ `POST /storage/upload` - Upload single file to Cloudinary
 - ✅ `POST /storage/upload/multiple` - Upload multiple files
 - ✅ `DELETE /storage/:publicId` - Delete file from Cloudinary
+
+**Sharing & Permissions:**
+- ✅ `POST /sharing/pages/:pageId/share` - Share page with user
+- ✅ `GET /sharing/pages/shared-with-me` - Get shared pages
+- ✅ `GET /sharing/pages/shared-by-me` - Get pages I shared
+- ✅ `PATCH /sharing/pages/:pageId/share/:userId` - Update permission
+- ✅ `DELETE /sharing/pages/:pageId/share/:userId` - Unshare page
+
+**Comments & Annotations:**
+- ✅ `POST /comments/blocks/:blockId` - Create comment
+- ✅ `GET /comments/blocks/:blockId` - Get comments (threaded)
+- ✅ `PATCH /comments/:id` - Update comment
+- ✅ `DELETE /comments/:id` - Delete comment
 
 ### Getting Access Token
 
@@ -544,6 +579,11 @@ This project is licensed under the MIT License.
 ## 👨‍💻 Author
 
 Hulk Developed with ❤️ for the Notely project.
+
+## 📖 Additional Documentation
+
+- **[TEST_GUIDE_SHARING_COMMENTS.md](./TEST_GUIDE_SHARING_COMMENTS.md)** - Complete step-by-step test guide for Sharing & Comments features
+- **[create-sharing-comments-tables.sql](./create-sharing-comments-tables.sql)** - SQL script to create sharing and comments tables
 
 ## 🔗 Resources
 

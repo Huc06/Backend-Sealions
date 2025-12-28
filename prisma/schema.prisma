@@ -15,29 +15,32 @@ datasource db {
 }
 
 model User {
-  id        String   @id // Supabase Auth User ID (UUID)
-  email     String   @unique
-  name      String?
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  pages     Page[]
-  tags      Tag[]
+  id           String      @id // Supabase Auth User ID (UUID)
+  email        String      @unique
+  name         String?
+  avatar       String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime   @updatedAt
+  pages        Page[]
+  tags         Tag[]
+  sharedPages  PageShare[] @relation("SharedWith")
+  comments     Comment[]
 
   @@map("users")
 }
 
 model Page {
-  id        String     @id @default(cuid())
-  title     String     @default("Untitled")
+  id        String      @id @default(cuid())
+  title     String      @default("Untitled")
   userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   blocks    Block[]
   pageTags  PageTag[]
-  isDeleted Boolean    @default(false)
+  shares    PageShare[]
+  isDeleted Boolean     @default(false)
   deletedAt DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@map("pages")
   @@index([userId])
@@ -47,16 +50,17 @@ model Page {
 }
 
 model Block {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   type      BlockType
   content   Json
   position  Int
   pageId    String
-  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  isDeleted Boolean   @default(false)
+  page      Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  isDeleted Boolean    @default(false)
   deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@map("blocks")
   @@index([pageId])
@@ -87,6 +91,47 @@ model PageTag {
   @@index([pageId])
   @@index([tagId])
   @@map("page_tags")
+}
+
+model PageShare {
+  id          String     @id @default(cuid())
+  pageId      String
+  sharedWith  String     // User ID
+  permission  Permission
+  page        Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user        User       @relation("SharedWith", fields: [sharedWith], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([pageId, sharedWith])
+  @@index([pageId])
+  @@index([sharedWith])
+  @@map("page_shares")
+}
+
+enum Permission {
+  VIEW
+  EDIT
+  COMMENT
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  content   String
+  blockId   String
+  userId    String
+  parentId  String?    // For threaded comments
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  block     Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([blockId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("comments")
 }
 
 enum BlockType {

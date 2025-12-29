@@ -45,7 +45,15 @@ A powerful and flexible backend API for Notely - a modern note-taking applicatio
 - ✅ **Secure Storage**: Files stored securely in Cloudinary
 - ✅ **File Management**: Upload, delete, and manage files via API
 
-### 5. Security Features
+### 5. Sharing & Collaboration
+- ✅ **Page Sharing**: Share pages with other users by userId or email
+- ✅ **Permission Levels**: VIEW, EDIT, COMMENT permissions
+- ✅ **Real-time Collaboration**: Multiple users can edit simultaneously via WebSocket
+- ✅ **Live Updates**: See changes from other users in real-time
+- ✅ **Active Users Tracking**: See who's currently viewing/editing a page
+- ✅ **Cursor Position**: Track cursor positions of collaborators
+
+### 6. Security Features
 - ✅ **Supabase Auth**: Enterprise-grade authentication
 - ✅ **Token Validation**: Direct verification with Supabase API
 - ✅ User data isolation
@@ -61,6 +69,8 @@ A powerful and flexible backend API for Notely - a modern note-taking applicatio
 - **Database**: [Supabase](https://supabase.com) (PostgreSQL)
 - **ORM**: [Prisma](https://www.prisma.io/) v6
 - **Authentication**: [Supabase Auth](https://supabase.com/docs/guides/auth)
+- **Real-time**: [Socket.io](https://socket.io/) for WebSocket collaboration
+- **File Storage**: [Cloudinary](https://cloudinary.com/) for media management
 - **Validation**: class-validator, class-transformer
 - **Package Manager**: pnpm
 
@@ -336,12 +346,28 @@ Comprehensive API documentation is available in [API_DOCUMENTATION.md](./API_DOC
 - `DELETE /storage/:publicId` - Delete a file from Cloudinary
 
 #### Sharing & Permissions
-- `POST /sharing/pages/:pageId/share` - Share a page with another user
+- `POST /sharing/pages/:pageId/share` - Share a page with another user (by userId or email)
 - `GET /sharing/pages/shared-with-me` - Get all pages shared with me
 - `GET /sharing/pages/shared-by-me` - Get all pages I have shared
 - `GET /sharing/pages/:pageId/shares` - Get users who have access to a page
 - `PATCH /sharing/pages/:pageId/share/:userId` - Update permission for shared page
 - `DELETE /sharing/pages/:pageId/share/:userId` - Unshare a page
+
+**Share by Email:**
+You can share pages using either `userId` or `email`. Sharing by email is more convenient:
+```json
+{
+  "email": "collaborator@example.com",
+  "permission": "EDIT"
+}
+```
+
+**Real-time Collaboration:**
+The API supports real-time collaboration via WebSocket. Multiple users can edit the same page simultaneously:
+- Connect to WebSocket namespace: `/collaboration`
+- Join a page: `join-page` event
+- Receive updates: `block-updated`, `user-joined`, `user-left`, `cursor-moved`
+- Send updates: `block-update`, `cursor-position`
 
 #### Comments & Annotations
 - `POST /comments/blocks/:blockId` - Create a comment on a block

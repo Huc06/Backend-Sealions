@@ -11,6 +11,7 @@ import { StorageModule } from './storage/storage.module';
 import { TagsModule } from './tags/tags.module';
 import { SharingModule } from './sharing/sharing.module';
 import { CommentsModule } from './comments/comments.module';
+import { CollaborationModule } from './collaboration/collaboration.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CommentsModule } from './comments/comments.module';
     TagsModule,
     SharingModule,
     CommentsModule,
+    CollaborationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

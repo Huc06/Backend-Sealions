@@ -3,6 +3,9 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBlockDto } from './dto/create-block.dto';
@@ -10,12 +13,16 @@ import { UpdateBlockDto } from './dto/update-block.dto';
 import { ReorderBlocksDto } from './dto/reorder-blocks.dto';
 import { SharingService } from '../sharing/sharing.service';
 import { Permission } from '../sharing/dto/share-page.dto';
+import { CollaborationGateway } from '../collaboration/collaboration.gateway';
 
 @Injectable()
 export class BlocksService {
   constructor(
     private prisma: PrismaService,
     private sharingService: SharingService,
+    @Optional()
+    @Inject(forwardRef(() => CollaborationGateway))
+    private collaborationGateway?: CollaborationGateway,
   ) {}
 
   async create(userId: string, createBlockDto: CreateBlockDto) {
@@ -47,6 +54,16 @@ export class BlocksService {
         pageId: createBlockDto.pageId,
       },
     });
+
+    // Emit WebSocket event for real-time collaboration
+    if (this.collaborationGateway) {
+      this.collaborationGateway.emitBlockUpdate(
+        createBlockDto.pageId,
+        block.id,
+        block.content,
+        userId,
+      );
+    }
 
     return block;
   }
@@ -135,6 +152,16 @@ export class BlocksService {
       where: { id },
       data: updateBlockDto,
     });
+
+    // Emit WebSocket event for real-time collaboration
+    if (this.collaborationGateway) {
+      this.collaborationGateway.emitBlockUpdate(
+        block.pageId,
+        updatedBlock.id,
+        updatedBlock.content,
+        userId,
+      );
+    }
 
     return updatedBlock;
   }

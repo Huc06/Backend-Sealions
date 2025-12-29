@@ -15,6 +15,7 @@ import {
 import { PagesService } from './pages.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { ConvertPageModeDto } from './dto/convert-page-mode.dto';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 
 @ApiTags('Pages')
@@ -215,6 +216,33 @@ export class PagesController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async permanentDelete(@Request() req, @Param('id') id: string) {
     return this.pagesService.permanentDelete(id, req.user.id);
+  }
+
+  @Post(':id/convert-mode')
+  @ApiOperation({ summary: 'Convert page mode between TRADITIONAL and SECURE' })
+  @ApiParam({ name: 'id', description: 'Page ID' })
+  @ApiBody({ type: ConvertPageModeDto })
+  @ApiOkResponse({ description: 'Page mode converted successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid conversion request' })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async convertMode(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() convertDto: ConvertPageModeDto,
+  ) {
+    return this.pagesService.convertMode(id, req.user.id, convertDto);
+  }
+
+  @Get(':id/storage-info')
+  @ApiOperation({ summary: 'Get storage information for a secure page' })
+  @ApiParam({ name: 'id', description: 'Page ID' })
+  @ApiOkResponse({ description: 'Storage information' })
+  @ApiBadRequestResponse({ description: 'Page is not in SECURE mode' })
+  @ApiNotFoundResponse({ description: 'Page not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getStorageInfo(@Request() req, @Param('id') id: string) {
+    return this.pagesService.getStorageInfo(id, req.user.id);
   }
 }
 

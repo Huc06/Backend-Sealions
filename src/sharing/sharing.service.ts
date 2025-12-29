@@ -13,7 +13,7 @@ export class SharingService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Share a page with another user
+   * Share a page with another user (by userId or email)
    */
   async sharePage(
     pageId: string,
@@ -33,18 +33,31 @@ export class SharingService {
       throw new ForbiddenException('Only page owner can share the page');
     }
 
-    // Cannot share with yourself
-    if (sharePageDto.userId === ownerId) {
-      throw new BadRequestException('Cannot share page with yourself');
+    // Find target user by userId or email
+    let targetUser;
+    if (sharePageDto.userId) {
+      targetUser = await this.prisma.user.findUnique({
+        where: { id: sharePageDto.userId },
+      });
+    } else if (sharePageDto.email) {
+      targetUser = await this.prisma.user.findUnique({
+        where: { email: sharePageDto.email },
+      });
+    } else {
+      throw new BadRequestException('Either userId or email must be provided');
     }
 
-    // Verify target user exists
-    const targetUser = await this.prisma.user.findUnique({
-      where: { id: sharePageDto.userId },
-    });
-
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(
+        sharePageDto.email
+          ? `User with email ${sharePageDto.email} not found`
+          : 'User not found',
+      );
+    }
+
+    // Cannot share with yourself
+    if (targetUser.id === ownerId) {
+      throw new BadRequestException('Cannot share page with yourself');
     }
 
     // Check if already shared
@@ -52,7 +65,7 @@ export class SharingService {
       where: {
         pageId_sharedWith: {
           pageId,
-          sharedWith: sharePageDto.userId,
+          sharedWith: targetUser.id,
         },
       },
     });
@@ -65,7 +78,7 @@ export class SharingService {
     return this.prisma.pageShare.create({
       data: {
         pageId,
-        sharedWith: sharePageDto.userId,
+        sharedWith: targetUser.id,
         permission: sharePageDto.permission,
       },
       include: {

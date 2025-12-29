@@ -34,7 +34,10 @@ export class SharingController {
   constructor(private sharingService: SharingService) {}
 
   @Post('pages/:pageId/share')
-  @ApiOperation({ summary: 'Share a page with another user' })
+  @ApiOperation({
+    summary: 'Share a page with another user',
+    description: 'Share by providing either userId or email. Email is more convenient for sharing.',
+  })
   @ApiParam({ name: 'pageId', description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
   @ApiBody({ type: SharePageDto })
   @ApiCreatedResponse({
@@ -44,7 +47,7 @@ export class SharingController {
         id: 'cmhvs1234000012gmbwreufjj4',
         pageId: 'cmhvq1234000012gmbwreufjj4',
         sharedWith: '4f4694b9-dd4c-435e-a931-2ea5b05add8e',
-        permission: 'VIEW',
+        permission: 'EDIT',
         createdAt: '2025-11-12T08:02:06.513Z',
         user: {
           id: '4f4694b9-dd4c-435e-a931-2ea5b05add8e',

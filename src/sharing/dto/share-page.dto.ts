@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsString, IsEmail, ValidateIf } from 'class-validator';
 
 export enum Permission {
   VIEW = 'VIEW',
@@ -8,17 +8,26 @@ export enum Permission {
 }
 
 export class SharePageDto {
-  @ApiProperty({
-    description: 'User ID to share the page with',
+  @ApiPropertyOptional({
+    description: 'User ID to share the page with (either userId or email is required)',
     example: '4f4694b9-dd4c-435e-a931-2ea5b05add8e',
   })
   @IsString()
-  userId: string;
+  @ValidateIf((o) => !o.email)
+  userId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Email of the user to share the page with (either userId or email is required)',
+    example: 'user@example.com',
+  })
+  @IsEmail()
+  @ValidateIf((o) => !o.userId)
+  email?: string;
 
   @ApiProperty({
     enum: Permission,
     description: 'Permission level',
-    example: Permission.VIEW,
+    example: Permission.EDIT,
   })
   @IsEnum(Permission)
   permission: Permission;

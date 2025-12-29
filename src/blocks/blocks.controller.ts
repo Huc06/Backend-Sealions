@@ -26,19 +26,161 @@ export class BlocksController {
   constructor(private blocksService: BlocksService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a block' })
-  @ApiBody({ type: CreateBlockDto })
+  @ApiOperation({
+    summary: 'Create a block',
+    description: `
+Create different types of blocks:
+- **TEXT**: Plain text with optional formatting
+- **HEADING**: Headings with levels (1, 2, 3)
+- **CHECKLIST**: Todo lists with checkable items
+- **IMAGE**: Images with URLs and captions
+- **FILE**: File attachments (PDFs, documents, etc.)
+
+See examples in the request body below.
+    `,
+  })
+  @ApiBody({
+    type: CreateBlockDto,
+    examples: {
+      textBlock: {
+        summary: 'Text Block',
+        description: 'Create a text block with optional formatting',
+        value: {
+          type: 'TEXT',
+          content: { text: 'Hello World', bold: false, italic: false },
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+          position: 0,
+        },
+      },
+      headingBlock: {
+        summary: 'Heading Block',
+        description: 'Create a heading block (H1, H2, or H3)',
+        value: {
+          type: 'HEADING',
+          content: { text: 'My Heading', level: 1 },
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+          position: 1,
+        },
+      },
+      checklistBlock: {
+        summary: 'Checklist Block',
+        description: 'Create a checklist with multiple items',
+        value: {
+          type: 'CHECKLIST',
+          content: {
+            items: [
+              { text: 'Task 1', checked: false },
+              { text: 'Task 2', checked: true },
+              { text: 'Task 3', checked: false },
+            ],
+          },
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+          position: 2,
+        },
+      },
+      imageBlock: {
+        summary: 'Image Block',
+        description: 'Create an image block with URL and optional caption',
+        value: {
+          type: 'IMAGE',
+          content: {
+            url: 'https://example.com/image.jpg',
+            caption: 'My beautiful image',
+            alt: 'Image description',
+          },
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+          position: 3,
+        },
+      },
+      fileBlock: {
+        summary: 'File Block',
+        description: 'Create a file block (PDF, document, etc.)',
+        value: {
+          type: 'FILE',
+          content: {
+            url: 'https://res.cloudinary.com/cloud/image/upload/v123/file.pdf',
+            name: 'document.pdf',
+            type: 'pdf',
+            size: 1024000,
+          },
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+          position: 4,
+        },
+      },
+    },
+  })
   @ApiCreatedResponse({
-    description: 'Created block',
+    description: 'Created block (response format is the same for all block types)',
     schema: {
-      example: {
-        id: 'cmhvpvb3j00072gmbnz1dl3jc',
-        type: 'TEXT',
-        content: { text: 'Hello', bold: false },
-        position: 0,
-        pageId: 'cmhvq1234000012gmbwreufjj4',
-        createdAt: '2025-11-12T08:06:52.400Z',
-        updatedAt: '2025-11-12T08:06:52.400Z',
+      examples: {
+        textBlock: {
+          value: {
+            id: 'cmhvpvb3j00072gmbnz1dl3jc',
+            type: 'TEXT',
+            content: { text: 'Hello World', bold: false },
+            position: 0,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+            createdAt: '2025-11-12T08:06:52.400Z',
+            updatedAt: '2025-11-12T08:06:52.400Z',
+          },
+        },
+        headingBlock: {
+          value: {
+            id: 'cmhvpvb3j00073gmbnz1dl3jd',
+            type: 'HEADING',
+            content: { text: 'My Heading', level: 1 },
+            position: 1,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+            createdAt: '2025-11-12T08:06:52.400Z',
+            updatedAt: '2025-11-12T08:06:52.400Z',
+          },
+        },
+        checklistBlock: {
+          value: {
+            id: 'cmhvpvb3j00074gmbnz1dl3je',
+            type: 'CHECKLIST',
+            content: {
+              items: [
+                { text: 'Task 1', checked: false },
+                { text: 'Task 2', checked: true },
+              ],
+            },
+            position: 2,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+            createdAt: '2025-11-12T08:06:52.400Z',
+            updatedAt: '2025-11-12T08:06:52.400Z',
+          },
+        },
+        imageBlock: {
+          value: {
+            id: 'cmhvpvb3j00075gmbnz1dl3jf',
+            type: 'IMAGE',
+            content: {
+              url: 'https://example.com/image.jpg',
+              caption: 'My beautiful image',
+            },
+            position: 3,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+            createdAt: '2025-11-12T08:06:52.400Z',
+            updatedAt: '2025-11-12T08:06:52.400Z',
+          },
+        },
+        fileBlock: {
+          value: {
+            id: 'cmhvpvb3j00076gmbnz1dl3jg',
+            type: 'FILE',
+            content: {
+              url: 'https://res.cloudinary.com/cloud/image/upload/v123/file.pdf',
+              name: 'document.pdf',
+              type: 'pdf',
+              size: 1024000,
+            },
+            position: 4,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+            createdAt: '2025-11-12T08:06:52.400Z',
+            updatedAt: '2025-11-12T08:06:52.400Z',
+          },
+        },
       },
     },
   })
@@ -48,11 +190,14 @@ export class BlocksController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List blocks in a page with optional search' })
+  @ApiOperation({
+    summary: 'List blocks in a page with optional search',
+    description: 'Returns all blocks for a page. Can include different block types: TEXT, HEADING, CHECKLIST, IMAGE, FILE',
+  })
   @ApiQuery({ name: 'pageId', required: true, description: 'Page ID', example: 'cmhvq1234000012gmbwreufjj4' })
   @ApiQuery({ name: 'search', required: false, description: 'Search term to filter blocks by content', example: 'hello' })
   @ApiOkResponse({
-    description: 'List of blocks',
+    description: 'List of blocks (can include multiple block types)',
     schema: {
       example: [
         {
@@ -60,6 +205,47 @@ export class BlocksController {
           type: 'TEXT',
           content: { text: 'Hello', bold: false },
           position: 0,
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+        },
+        {
+          id: 'cmhvpvb3j00073gmbnz1dl3jd',
+          type: 'HEADING',
+          content: { text: 'My Heading', level: 1 },
+          position: 1,
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+        },
+        {
+          id: 'cmhvpvb3j00074gmbnz1dl3je',
+          type: 'CHECKLIST',
+          content: {
+            items: [
+              { text: 'Task 1', checked: false },
+              { text: 'Task 2', checked: true },
+            ],
+          },
+          position: 2,
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+        },
+        {
+          id: 'cmhvpvb3j00075gmbnz1dl3jf',
+          type: 'IMAGE',
+          content: {
+            url: 'https://example.com/image.jpg',
+            caption: 'My image',
+          },
+          position: 3,
+          pageId: 'cmhvq1234000012gmbwreufjj4',
+        },
+        {
+          id: 'cmhvpvb3j00076gmbnz1dl3jg',
+          type: 'FILE',
+          content: {
+            url: 'https://res.cloudinary.com/cloud/image/upload/v123/file.pdf',
+            name: 'document.pdf',
+            type: 'pdf',
+            size: 1024000,
+          },
+          position: 4,
           pageId: 'cmhvq1234000012gmbwreufjj4',
         },
       ],
@@ -75,17 +261,78 @@ export class BlocksController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get block by ID' })
+  @ApiOperation({
+    summary: 'Get block by ID',
+    description: 'Returns a single block. Block can be any type: TEXT, HEADING, CHECKLIST, IMAGE, or FILE',
+  })
   @ApiParam({ name: 'id', description: 'Block ID', example: 'cmhvpvb3j00072gmbnz1dl3jc' })
   @ApiOkResponse({
-    description: 'Block detail',
+    description: 'Block detail (format depends on block type)',
     schema: {
-      example: {
-        id: 'cmhvpvb3j00072gmbnz1dl3jc',
-        type: 'TEXT',
-        content: { text: 'Hello', bold: false },
-        position: 0,
-        pageId: 'cmhvq1234000012gmbwreufjj4',
+      examples: {
+        textBlock: {
+          summary: 'Text Block',
+          value: {
+            id: 'cmhvpvb3j00072gmbnz1dl3jc',
+            type: 'TEXT',
+            content: { text: 'Hello', bold: false },
+            position: 0,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+          },
+        },
+        headingBlock: {
+          summary: 'Heading Block',
+          value: {
+            id: 'cmhvpvb3j00073gmbnz1dl3jd',
+            type: 'HEADING',
+            content: { text: 'My Heading', level: 1 },
+            position: 1,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+          },
+        },
+        checklistBlock: {
+          summary: 'Checklist Block',
+          value: {
+            id: 'cmhvpvb3j00074gmbnz1dl3je',
+            type: 'CHECKLIST',
+            content: {
+              items: [
+                { text: 'Task 1', checked: false },
+                { text: 'Task 2', checked: true },
+              ],
+            },
+            position: 2,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+          },
+        },
+        imageBlock: {
+          summary: 'Image Block',
+          value: {
+            id: 'cmhvpvb3j00075gmbnz1dl3jf',
+            type: 'IMAGE',
+            content: {
+              url: 'https://example.com/image.jpg',
+              caption: 'My image',
+            },
+            position: 3,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+          },
+        },
+        fileBlock: {
+          summary: 'File Block',
+          value: {
+            id: 'cmhvpvb3j00076gmbnz1dl3jg',
+            type: 'FILE',
+            content: {
+              url: 'https://res.cloudinary.com/cloud/image/upload/v123/file.pdf',
+              name: 'document.pdf',
+              type: 'pdf',
+              size: 1024000,
+            },
+            position: 4,
+            pageId: 'cmhvq1234000012gmbwreufjj4',
+          },
+        },
       },
     },
   })

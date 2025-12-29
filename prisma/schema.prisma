@@ -15,56 +15,71 @@ datasource db {
 }
 
 model User {
-  id           String      @id // Supabase Auth User ID (UUID)
-  email        String      @unique
-  name         String?
-  avatar       String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime   @updatedAt
-  pages        Page[]
-  tags         Tag[]
-  sharedPages  PageShare[] @relation("SharedWith")
-  comments     Comment[]
+  id                     String      @id // Supabase Auth User ID (UUID)
+  email                  String      @unique
+  name                   String?
+  avatar                 String?
+  passwordChangedAt      DateTime? // Track when password was last changed
+  passwordReminderSentAt DateTime? // Track last reminder sent
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  pages                  Page[]
+  tags                   Tag[]
+  sharedPages            PageShare[] @relation("SharedWith")
+  comments               Comment[]
 
   @@map("users")
 }
 
-model Page {
-  id        String      @id @default(cuid())
-  title     String      @default("Untitled")
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  blocks    Block[]
-  pageTags  PageTag[]
-  shares    PageShare[]
-  isDeleted Boolean     @default(false)
-  deletedAt DateTime?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+enum PageMode {
+  TRADITIONAL // Centralized, like Notion
+  SECURE // Decentralized, encrypted with Walrus + Seal
+}
 
-  @@map("pages")
+model Page {
+  id              String      @id @default(cuid())
+  title           String      @default("Untitled")
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode            PageMode    @default(TRADITIONAL)
+  blocks          Block[]
+  pageTags        PageTag[]
+  shares          PageShare[]
+  isDeleted       Boolean     @default(false)
+  deletedAt       DateTime?
+  // Secure mode fields
+  storageLocation String? // Walrus CID
+  policyId        String? // Seal policy ID
+  expiryDate      DateTime? // Storage expiry date
+  storageCost     String? // Storage cost in WAL
+  epochs          Int? // Number of epochs (14 days each)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
   @@index([userId])
   @@index([userId, updatedAt])
   @@index([title])
   @@index([userId, isDeleted])
+  @@index([mode])
+  @@map("pages")
 }
 
 model Block {
-  id        String     @id @default(cuid())
+  id        String    @id @default(cuid())
   type      BlockType
   content   Json
   position  Int
   pageId    String
-  page      Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
   comments  Comment[]
-  isDeleted Boolean    @default(false)
+  isDeleted Boolean   @default(false)
   deletedAt DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  @@map("blocks")
   @@index([pageId])
   @@index([pageId, isDeleted])
+  @@map("blocks")
 }
 
 model Tag {
@@ -83,9 +98,9 @@ model Tag {
 model PageTag {
   pageId    String
   tagId     String
-  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@id([pageId, tagId])
   @@index([pageId])
@@ -94,14 +109,14 @@ model PageTag {
 }
 
 model PageShare {
-  id          String     @id @default(cuid())
-  pageId      String
-  sharedWith  String     // User ID
-  permission  Permission
-  page        Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  user        User       @relation("SharedWith", fields: [sharedWith], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  pageId     String
+  sharedWith String // User ID
+  permission Permission
+  page       Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user       User       @relation("SharedWith", fields: [sharedWith], references: [id], onDelete: Cascade)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@unique([pageId, sharedWith])
   @@index([pageId])
@@ -120,7 +135,7 @@ model Comment {
   content   String
   blockId   String
   userId    String
-  parentId  String?    // For threaded comments
+  parentId  String? // For threaded comments
   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[] @relation("CommentReplies")
   block     Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)

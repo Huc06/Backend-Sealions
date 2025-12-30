@@ -17,7 +17,7 @@ export class SealEncryptionService {
 
   /**
    * Encrypt data with Seal (mock)
-   * Returns encrypted data and policy ID
+   * Returns encrypted data, policy ID, and encryption key
    */
   async encrypt(
     data: string | Buffer,
@@ -31,11 +31,18 @@ export class SealEncryptionService {
     policyId: string;
     iv: Buffer;
     tag: Buffer;
+    encryptionKey: string; // Key user needs to save
+    keyId: string; // Reference ID for the key
   }> {
     const plaintext = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
 
     // Generate encryption key (in production, Seal handles this)
     const key = crypto.randomBytes(this.keyLength);
+    const keyHex = key.toString('hex');
+    
+    // Generate unique key ID for reference
+    const keyId = `key_${crypto.randomBytes(16).toString('hex')}`;
+    
     const iv = crypto.randomBytes(16); // Initialization vector
     const cipher = crypto.createCipheriv(this.algorithm, key, iv);
 
@@ -48,7 +55,7 @@ export class SealEncryptionService {
 
     // Store key with policy ID (in production, Seal manages this onchain)
     // For demo, we'll store in memory (in production, this is handled by Seal SDK)
-    this.logger.log(`Mock encrypt: policyId=${policyId}, size=${plaintext.length} bytes`);
+    this.logger.log(`Mock encrypt: policyId=${policyId}, keyId=${keyId}, size=${plaintext.length} bytes`);
 
     // Combine key + encrypted data for demo (in production, Seal handles key management)
     const combined = Buffer.concat([
@@ -63,6 +70,8 @@ export class SealEncryptionService {
       policyId,
       iv,
       tag,
+      encryptionKey: `seal_${keyHex}`, // User-friendly key format
+      keyId, // Reference ID for the key
     };
   }
 

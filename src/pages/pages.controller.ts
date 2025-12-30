@@ -42,7 +42,7 @@ export class PagesController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(@Request() req, @Body() createPageDto: CreatePageDto) {
-    return this.pagesService.create(req.user.id, createPageDto);
+    return this.pagesService.create(req.user.id, createPageDto, req.user.email);
   }
 
   @Get()

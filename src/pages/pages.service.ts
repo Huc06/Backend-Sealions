@@ -12,6 +12,7 @@ import { Permission } from '../sharing/dto/share-page.dto';
 import { WalrusStorageService } from '../walrus/walrus-storage.service';
 import { SealEncryptionService } from '../seal/seal-encryption.service';
 import { WalrusPricingService } from '../walrus/walrus-pricing.service';
+import { AuthService } from '../auth/auth.service';
 import { ConvertPageModeDto } from './dto/convert-page-mode.dto';
 import { PageMode } from './dto/create-page.dto';
 
@@ -23,10 +24,25 @@ export class PagesService {
     private walrusStorage: WalrusStorageService,
     private sealEncryption: SealEncryptionService,
     private walrusPricing: WalrusPricingService,
+    private authService: AuthService,
   ) {}
 
-  async create(userId: string, createPageDto: CreatePageDto) {
+  async create(userId: string, createPageDto: CreatePageDto, userEmail?: string) {
     const mode = createPageDto.mode || PageMode.TRADITIONAL;
+
+    // Ensure user exists in database (auto-sync)
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      // Sync user to database
+      await this.authService.syncUser({
+        id: userId,
+        email: userEmail || `${userId}@temp.com`,
+        user_metadata: {},
+      });
+    }
 
     const page = await this.prisma.page.create({
       data: {
@@ -445,6 +461,8 @@ export class PagesService {
       return {
         ...updatedPage,
         message: 'Page converted to SECURE mode successfully',
+        encryptionKey: encrypted.encryptionKey, // ✅ IMPORTANT: Return encryption key
+        keyId: encrypted.keyId, // Key reference ID
         storageInfo: {
           cid: uploadResult.cid,
           cost: pricing.priceQuilt,
